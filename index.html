@@ -1158,12 +1158,12 @@
 
                 <!-- Tabs -->
                 <div class="tabs" id="tabsContainer" style="display: none;">
-                    <button class="tab active" onclick="switchTab('live')">Live</button>
-                    <button class="tab" onclick="switchTab('scorecard')">Scorecard</button>
-                    <button class="tab" onclick="switchTab('commentary')">Commentary</button>
-                    <button class="tab" onclick="switchTab('teams')">Teams</button>
-                    <button class="tab" onclick="switchTab('stats')">Stats</button>
-                    <button class="tab" onclick="switchTab('history')">History</button>
+                    <button class="tab active" onclick="switchTab('live', this)">Live</button>
+                    <button class="tab" onclick="switchTab('scorecard', this)">Scorecard</button>
+                    <button class="tab" onclick="switchTab('commentary', this)">Commentary</button>
+                    <button class="tab" onclick="switchTab('teams', this)">Teams</button>
+                    <button class="tab" onclick="switchTab('stats', this)">Stats</button>
+                    <button class="tab" onclick="switchTab('history', this)">History</button>
                 </div>
 
                 <!-- Live Tab -->
@@ -2216,9 +2216,8 @@
         // ============================================
         // TAB NAVIGATION
         // ============================================
-        function switchTab(tabName) {
-            const event = window.event;
-            // Hide all tabs
+        function switchTab(tabName, clickedBtn) {
+            // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -2231,8 +2230,31 @@
             // Show selected tab
             document.getElementById(tabName + 'Tab').classList.add('active');
 
-            // Mark button as active
-            event.target.classList.add('active');
+            // Mark clicked button as active
+            if (clickedBtn) {
+                clickedBtn.classList.add('active');
+            }
+
+            // Immediately refresh the relevant section so data is current
+            switch (tabName) {
+                case 'scorecard':
+                    updateScorecard();
+                    break;
+                case 'commentary':
+                    updateCommentary();
+                    break;
+                case 'teams':
+                    updateTeamsView();
+                    break;
+                case 'stats':
+                    updateStats();
+                    break;
+                case 'history':
+                    updateHistory();
+                    break;
+                default:
+                    updateRecentBalls();
+            }
         }
 
         // ============================================
