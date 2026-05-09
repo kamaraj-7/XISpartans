@@ -1492,15 +1492,19 @@
         }
 
         async function updateMatchScore(matchId, scoreData) {
+            // Update local state immediately for better responsiveness
+            if (appState.activeMatch && appState.activeMatch.id === matchId) {
+                Object.assign(appState.activeMatch, scoreData);
+                // Force UI update after local state change
+                loadMatchUI();
+            }
+            
             try {
                 if (db) {
                     await db.collection("matches").doc(matchId).update({
                         ...scoreData,
                         updatedAt: firebase.firestore.Timestamp.now()
                     });
-                }
-                if (appState.activeMatch && appState.activeMatch.id === matchId) {
-                    Object.assign(appState.activeMatch, scoreData);
                 }
             } catch (error) {
                 console.error("Error updating match:", error);
@@ -2066,14 +2070,13 @@
                 });
             }
 
-            // Demo scorecard data if no live data
-            const scorecardData = Object.keys(battingStats).length > 0 
-                ? Object.entries(battingStats).map(([name, stats]) => ({ name, ...stats }))
-                : [
-                    { name: 'Virat Kohli', runs: 45, balls: 32, fours: 5, sixes: 1 },
-                    { name: 'Rohit Sharma', runs: 38, balls: 28, fours: 4, sixes: 0 },
-                    { name: 'Hardik Pandya', runs: 22, balls: 15, fours: 2, sixes: 1 }
-                ];
+            // Use actual batting stats
+            const scorecardData = Object.entries(battingStats).map(([name, stats]) => ({ name, ...stats }));
+            
+            if (scorecardData.length === 0) {
+                container.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">No batting data yet</td></tr>';
+                return;
+            }
 
             container.innerHTML = '';
             scorecardData.forEach(player => {
@@ -2139,12 +2142,32 @@
                 return;
             }
 
-            // Demo bowling stats
-            const bowlingData = [
-                { name: 'Jasprit Bumrah', overs: 4, runs: 28, wickets: 2, economy: 7.0 },
-                { name: 'Mohammed Siraj', overs: 4, runs: 35, wickets: 1, economy: 8.75 },
-                { name: 'Yuzvendra Chahal', overs: 4, runs: 32, wickets: 1, economy: 8.0 }
-            ];
+            // Calculate bowling stats from balls
+            const bowlingStats = {};
+            if (match.balls && match.balls.length > 0) {
+                match.balls.forEach(ball => {
+                    const bowler = ball.bowler || 'Bowler';
+                    if (!bowlingStats[bowler]) {
+                        bowlingStats[bowler] = { runs: 0, balls: 0, wickets: 0 };
+                    }
+                    if (!ball.extra || (ball.extra !== 'WD' && ball.extra !== 'NB')) {
+                        bowlingStats[bowler].balls += 1;
+                    }
+                    if (ball.runs) bowlingStats[bowler].runs += ball.runs;
+                    if (ball.wicket) bowlingStats[bowler].wickets += 1;
+                });
+            }
+
+            const bowlingData = Object.entries(bowlingStats).map(([name, stats]) => {
+                const overs = Math.floor(stats.balls / 6) + (stats.balls % 6) / 10;
+                const economy = stats.balls > 0 ? ((stats.runs / stats.balls) * 6).toFixed(2) : '0.00';
+                return { name, overs, runs: stats.runs, wickets: stats.wickets, economy };
+            });
+
+            if (bowlingData.length === 0) {
+                container.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">No bowling data yet</td></tr>';
+                return;
+            }
 
             container.innerHTML = '';
             bowlingData.forEach(bowler => {
@@ -2194,6 +2217,7 @@
         // TAB NAVIGATION
         // ============================================
         function switchTab(tabName) {
+            const event = window.event;
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
